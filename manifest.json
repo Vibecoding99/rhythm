@@ -1,0 +1,17 @@
+{
+  "name": "Rhythm — Daily Planner & Time Log",
+  "short_name": "Rhythm",
+  "description": "A single timeline for planning your day and logging how you actually spent it.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f9f9f7",
+  "theme_color": "#0b0b0b",
+  "icons": [
+    { "src": "icons/icon-32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
