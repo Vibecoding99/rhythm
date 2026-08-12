@@ -2,6 +2,7 @@ import { el } from "../components/sheet.js";
 import { openEntryForm } from "../components/entry-form.js";
 import { getEntriesForDate, getCategory, getSettings } from "../lib/store.js";
 import { catColor } from "../lib/color.js";
+import { getPhotoURL } from "../lib/photos.js";
 import {
   toISODate, fromISODate, addDaysISO, isToday, formatDayHeading,
   timeStrToMinutes, minutesToTimeStr, snapMinutes, formatTimeLabel,
@@ -173,6 +174,11 @@ export function render(container, api) {
       el("div", { class: "entry-time" }, `${formatTimeLabel(occurrence.startTime)} – ${formatTimeLabel(occurrence.endTime)}`),
       detail ? el("div", { class: "entry-note" }, detail) : null,
     ]);
+    if (occurrence.photoId && sizeClass !== "tiny") {
+      const thumb = el("img", { class: "entry-thumb", alt: "" });
+      block.appendChild(thumb);
+      getPhotoURL(occurrence.photoId).then((url) => { if (url) thumb.src = url; });
+    }
     entriesLayer.appendChild(block);
   });
   timeline.appendChild(entriesLayer);

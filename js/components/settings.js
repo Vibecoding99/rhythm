@@ -161,7 +161,7 @@ export function openSettings(onChange) {
       if (!ok) { fileInput.value = ""; return; }
       try {
         const text = await file.text();
-        importData(text);
+        await importData(text);
         toast("Data imported");
         renderCategories();
         renderBackupStatusLine();
@@ -174,8 +174,8 @@ export function openSettings(onChange) {
     sheet.appendChild(el("div", { class: "sheet-actions" }, [
       el("button", {
         class: "btn btn-secondary",
-        onclick: () => {
-          downloadBackupFile();
+        onclick: async () => {
+          await downloadBackupFile();
           renderBackupStatusLine();
         },
       }, "Export JSON"),

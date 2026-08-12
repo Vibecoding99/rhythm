@@ -3,8 +3,8 @@ import { exportData, getSettings, updateSettings } from "./store.js";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SNOOZE_KEY = "rhythm.backupBannerSnoozeUntil";
 
-export function downloadBackupFile() {
-  const blob = new Blob([exportData()], { type: "application/json" });
+export async function downloadBackupFile() {
+  const blob = new Blob([await exportData()], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

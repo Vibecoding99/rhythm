@@ -9,6 +9,8 @@ import {
   deleteOccurrence, trimOrReplaceOccurrence, getCategory,
 } from "../lib/store.js";
 import { catColor, nextPaletteSlot, PALETTE } from "../lib/color.js";
+import { generateId } from "../lib/id.js";
+import { compressImage, savePhoto, deletePhoto, getPhotoURL } from "../lib/photos.js";
 
 const TIME_OPTIONS = Array.from({ length: MINUTES_PER_DAY / SNAP }, (_, i) => {
   const mins = i * SNAP;
@@ -58,8 +60,8 @@ function buildTimeSelect(selected, onChange) {
 export function openEntryForm({ date, startTime, endTime, occurrence, onDone } = {}) {
   const editing = !!occurrence;
   const seed = editing
-    ? { date: occurrence.date, startTime: occurrence.startTime, endTime: occurrence.endTime, category: occurrence.category, note: occurrence.note || "", customFields: { ...(occurrence.customFields || {}) } }
-    : { date: date || toISODate(new Date()), ...nowSnapped(), category: null, note: "", customFields: {} };
+    ? { date: occurrence.date, startTime: occurrence.startTime, endTime: occurrence.endTime, category: occurrence.category, note: occurrence.note || "", customFields: { ...(occurrence.customFields || {}) }, photoId: occurrence.photoId || null }
+    : { date: date || toISODate(new Date()), ...nowSnapped(), category: null, note: "", customFields: {}, photoId: null };
   if (startTime) seed.startTime = startTime;
   if (endTime) seed.endTime = endTime;
 
@@ -70,8 +72,15 @@ export function openEntryForm({ date, startTime, endTime, occurrence, onDone } =
     category: seed.category,
     note: seed.note,
     customFields: seed.customFields,
+    photoId: seed.photoId,
     isRecurring: editing ? !!occurrence.isRecurring : false,
   };
+  // Photo edits stay pending (in memory / a local object URL) until Save —
+  // nothing is written to IndexedDB, and nothing old is deleted, until then.
+  const existingPhotoId = seed.photoId;
+  let pendingBlob = null;
+  let pendingPreviewUrl = null;
+  let photoRemoved = false;
 
   openSheet((sheet, close) => {
     sheet.appendChild(el("h2", {}, editing ? "Edit entry" : "New entry"));
@@ -276,6 +285,71 @@ export function openEntryForm({ date, startTime, endTime, occurrence, onDone } =
     renderNewCategoryRow();
     renderCustomFields();
 
+    // ---- Photo field ----
+    const photoWrap = el("div", { class: "field" }, [el("label", {}, "Photo")]);
+    const photoBody = el("div", { class: "photo-field" });
+    photoWrap.appendChild(photoBody);
+    sheet.appendChild(photoWrap);
+
+    const fileInput = el("input", {
+      type: "file",
+      accept: "image/*",
+      style: "display:none",
+      onchange: async (e) => {
+        const file = e.target.files[0];
+        e.target.value = "";
+        if (!file) return;
+        renderPhotoBody(true);
+        try {
+          const blob = await compressImage(file);
+          if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
+          pendingBlob = blob;
+          pendingPreviewUrl = URL.createObjectURL(blob);
+          photoRemoved = false;
+        } catch (err) {
+          toast("Couldn't read that photo");
+        }
+        renderPhotoBody();
+      },
+    });
+    photoWrap.appendChild(fileInput);
+
+    async function renderPhotoBody(loading = false) {
+      photoBody.innerHTML = "";
+      if (loading) {
+        photoBody.appendChild(el("div", { class: "duration-hint" }, "Processing photo…"));
+        return;
+      }
+      let previewUrl = null;
+      if (pendingBlob) previewUrl = pendingPreviewUrl;
+      else if (!photoRemoved && existingPhotoId) previewUrl = await getPhotoURL(existingPhotoId);
+
+      if (previewUrl) {
+        photoBody.appendChild(el("img", { src: previewUrl, class: "photo-preview", alt: "Entry photo" }));
+        photoBody.appendChild(el("div", { class: "photo-actions" }, [
+          el("button", { type: "button", class: "btn btn-secondary", style: "flex:1;", onclick: () => fileInput.click() }, "Replace"),
+          el("button", {
+            type: "button",
+            class: "btn btn-secondary",
+            style: "flex:1;",
+            onclick: () => {
+              if (pendingPreviewUrl) { URL.revokeObjectURL(pendingPreviewUrl); pendingPreviewUrl = null; }
+              pendingBlob = null;
+              photoRemoved = true;
+              renderPhotoBody();
+            },
+          }, "Remove"),
+        ]));
+      } else {
+        photoBody.appendChild(el("button", {
+          type: "button",
+          class: "btn btn-secondary btn-block",
+          onclick: () => fileInput.click(),
+        }, "+ Add photo"));
+      }
+    }
+    renderPhotoBody();
+
     // ---- Note field ----
     const noteInput = el("textarea", {
       placeholder: "What are you doing? (optional)",
@@ -337,6 +411,22 @@ export function openEntryForm({ date, startTime, endTime, occurrence, onDone } =
       onDone && onDone();
     }
 
+    // Only touches IndexedDB once the save is actually committed — a
+    // cancelled save never writes a new blob or deletes the old one.
+    async function resolvePhotoId() {
+      if (pendingBlob) {
+        const newId = generateId();
+        await savePhoto(newId, pendingBlob);
+        if (existingPhotoId) await deletePhoto(existingPhotoId);
+        return newId;
+      }
+      if (photoRemoved) {
+        if (existingPhotoId) await deletePhoto(existingPhotoId);
+        return null;
+      }
+      return existingPhotoId;
+    }
+
     async function handleSave() {
       if (!form.category) { toast("Choose a category"); return; }
       const durMins = timeStrToMinutes(form.endTime) - timeStrToMinutes(form.startTime);
@@ -357,8 +447,10 @@ export function openEntryForm({ date, startTime, endTime, occurrence, onDone } =
         // 'keep' falls through and saves as-is.
       }
 
+      form.photoId = await resolvePhotoId();
+
       if (editing) {
-        const baseChanges = { startTime: form.startTime, endTime: form.endTime, category: form.category, note: form.note, customFields: form.customFields };
+        const baseChanges = { startTime: form.startTime, endTime: form.endTime, category: form.category, note: form.note, customFields: form.customFields, photoId: form.photoId };
         if (occurrence.isRecurring) {
           // Date is fixed for recurring occurrences — the anchor/exception key never moves.
           const scope = await showScopeDialog("Save");

@@ -1,6 +1,7 @@
 import { generateId } from "./id.js";
 import { fromISODate, weekdayIndex, timeStrToMinutes } from "./date.js";
 import { nextPaletteSlot } from "./color.js";
+import { deletePhoto, exportPhotosForIds, importPhotos } from "./photos.js";
 
 const STORAGE_KEY = "rhythm.v1";
 
@@ -102,6 +103,12 @@ export function categoryUsageCount(id) {
 }
 
 export function deleteCategory(id) {
+  const removedIds = new Set(state.entries.filter((e) => e.category === id).map((e) => e.id));
+  state.entries.forEach((e) => { if (removedIds.has(e.id) && e.photoId) deletePhoto(e.photoId); });
+  state.exceptions.forEach((x) => {
+    if (removedIds.has(x.masterId) && x.overrides && x.overrides.photoId) deletePhoto(x.overrides.photoId);
+  });
+
   state.categories = state.categories.filter((c) => c.id !== id);
   state.entries = state.entries.filter((e) => e.category !== id);
   state.exceptions = state.exceptions.filter((x) => {
@@ -141,6 +148,7 @@ export function getEntriesForDate(iso) {
           category: e.category,
           note: e.note,
           customFields: e.customFields || {},
+          photoId: e.photoId || null,
         });
       }
       continue;
@@ -162,6 +170,7 @@ export function getEntriesForDate(iso) {
         category: exc.overrides.category,
         note: exc.overrides.note,
         customFields: exc.overrides.customFields || {},
+        photoId: exc.overrides.photoId || null,
       });
       continue;
     }
@@ -176,6 +185,7 @@ export function getEntriesForDate(iso) {
       category: e.category,
       note: e.note,
       customFields: e.customFields || {},
+      photoId: e.photoId || null,
     });
   }
 
@@ -223,6 +233,7 @@ export function addEntry(data) {
     category: data.category,
     note: data.note || "",
     customFields: data.customFields || {},
+    photoId: data.photoId || null,
     isRecurring: !!data.isRecurring,
     recurrenceRule: data.isRecurring ? { freq: "weekly" } : null,
     createdAt: now,
@@ -260,6 +271,7 @@ export function updateOccurrence(occurrence, changes, scope) {
     category: changes.category ?? occurrence.category,
     note: changes.note !== undefined ? changes.note : occurrence.note,
     customFields: changes.customFields !== undefined ? changes.customFields : occurrence.customFields,
+    photoId: changes.photoId !== undefined ? changes.photoId : occurrence.photoId,
   };
   if (exc) {
     exc.type = "modified";
@@ -281,12 +293,19 @@ export function updateOccurrence(occurrence, changes, scope) {
 
 export function deleteOccurrence(occurrence, scope) {
   if (!occurrence.isRecurring) {
+    const entry = state.entries.find((e) => e.id === occurrence.masterId);
+    if (entry && entry.photoId) deletePhoto(entry.photoId);
     state.entries = state.entries.filter((e) => e.id !== occurrence.masterId);
     persist();
     return;
   }
 
   if (scope === "series") {
+    const master = state.entries.find((e) => e.id === occurrence.masterId);
+    if (master && master.photoId) deletePhoto(master.photoId);
+    state.exceptions
+      .filter((x) => x.masterId === occurrence.masterId && x.overrides && x.overrides.photoId)
+      .forEach((x) => deletePhoto(x.overrides.photoId));
     state.entries = state.entries.filter((e) => e.id !== occurrence.masterId);
     state.exceptions = state.exceptions.filter((x) => x.masterId !== occurrence.masterId);
     persist();
@@ -387,15 +406,21 @@ export function updateSettings(changes) {
 
 // ---------- Export / Import ----------
 
-export function exportData() {
-  return JSON.stringify(state, null, 2);
+export async function exportData() {
+  const photoIds = [];
+  state.entries.forEach((e) => { if (e.photoId) photoIds.push(e.photoId); });
+  state.exceptions.forEach((x) => { if (x.overrides && x.overrides.photoId) photoIds.push(x.overrides.photoId); });
+  const photos = await exportPhotosForIds(photoIds);
+  return JSON.stringify({ ...state, photos }, null, 2);
 }
 
-export function importData(json) {
+export async function importData(json) {
   const parsed = JSON.parse(json);
   if (!parsed || !Array.isArray(parsed.entries) || !Array.isArray(parsed.categories)) {
     throw new Error("Invalid backup file");
   }
-  state = mergeWithDefaults(parsed);
+  await importPhotos(parsed.photos);
+  const { photos, ...stateOnly } = parsed;
+  state = mergeWithDefaults(stateOnly);
   persist();
 }

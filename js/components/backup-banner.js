@@ -24,7 +24,7 @@ export function checkAndShowBackupReminder() {
       el("button", {
         type: "button",
         class: "backup-banner-action",
-        onclick: () => { downloadBackupFile(); banner.remove(); toast("Backup downloaded"); },
+        onclick: async () => { await downloadBackupFile(); banner.remove(); toast("Backup downloaded"); },
       }, "Export now"),
       el("button", {
         type: "button",
