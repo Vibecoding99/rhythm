@@ -1,4 +1,4 @@
-const CACHE_NAME = "rhythm-v7";
+const CACHE_NAME = "rhythm-v8";
 const ASSETS = [
   "./",
   "./index.html",
@@ -14,14 +14,17 @@ const ASSETS = [
   "./js/components/backup-banner.js",
   "./js/components/dialogs.js",
   "./js/components/entry-form.js",
+  "./js/components/goal-form.js",
   "./js/components/settings.js",
   "./js/components/sheet.js",
   "./js/lib/backup.js",
   "./js/lib/color.js",
   "./js/lib/date.js",
+  "./js/lib/goals.js",
   "./js/lib/id.js",
   "./js/lib/store.js",
   "./js/views/day.js",
+  "./js/views/goals.js",
   "./js/views/month.js",
   "./js/views/summary.js",
   "./js/views/week.js",

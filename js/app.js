@@ -7,10 +7,11 @@ import * as dayView from "./views/day.js";
 import * as weekView from "./views/week.js";
 import * as monthView from "./views/month.js";
 import * as summaryView from "./views/summary.js";
+import * as goalsView from "./views/goals.js";
 
 applyStoredTheme();
 
-const VIEWS = { day: dayView, week: weekView, month: monthView, summary: summaryView };
+const VIEWS = { day: dayView, week: weekView, month: monthView, summary: summaryView, goals: goalsView };
 
 const state = {
   view: "day",
@@ -49,7 +50,7 @@ function render() {
   Array.from(nav.children).forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.view === state.view);
   });
-  fab.style.display = state.view === "summary" ? "none" : "flex";
+  fab.style.display = state.view === "summary" || state.view === "goals" ? "none" : "flex";
 }
 
 nav.addEventListener("click", (e) => {

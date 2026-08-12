@@ -9,6 +9,7 @@ const DEFAULT_STATE = {
   categories: [],
   entries: [],
   exceptions: [],
+  goals: [],
   settings: {
     dayStartHour: 6,
     dayEndHour: 23,
@@ -107,6 +108,7 @@ export function deleteCategory(id) {
     const master = state.entries.find((e) => e.id === x.masterId);
     return !!master;
   });
+  state.goals = state.goals.filter((g) => g.categoryId !== id);
   persist();
 }
 
@@ -326,6 +328,50 @@ export function trimOrReplaceOccurrence(occurrence, newStart, newEnd) {
   } else {
     deleteOccurrence(occurrence, "instance");
   }
+}
+
+// ---------- Goals ----------
+
+export function getGoals() {
+  return state.goals.slice();
+}
+
+export function getGoal(id) {
+  return state.goals.find((g) => g.id === id) || null;
+}
+
+export function addGoal(data) {
+  const now = Date.now();
+  const goal = {
+    id: generateId(),
+    categoryId: data.categoryId,
+    metric: data.metric, // 'time' | 'count' | 'sum'
+    sumFieldId: data.sumFieldId || null,
+    filterFieldId: data.filterFieldId || null,
+    filterValue: data.filterValue || null,
+    direction: data.direction === "max" ? "max" : "min",
+    target: Number(data.target) || 0,
+    period: data.period === "monthly" ? "monthly" : "weekly",
+    unit: data.unit || "",
+    name: data.name || "",
+    createdAt: now,
+    updatedAt: now,
+  };
+  state.goals.push(goal);
+  persist();
+  return goal;
+}
+
+export function updateGoal(id, changes) {
+  const goal = state.goals.find((g) => g.id === id);
+  if (!goal) return;
+  Object.assign(goal, changes, { updatedAt: Date.now() });
+  persist();
+}
+
+export function deleteGoal(id) {
+  state.goals = state.goals.filter((g) => g.id !== id);
+  persist();
 }
 
 // ---------- Settings ----------
