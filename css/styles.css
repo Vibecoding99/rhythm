@@ -511,6 +511,7 @@ p { margin: 0; }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 .sheet {
+  position: relative;
   background: var(--surface-raised);
   width: 100%;
   max-width: 720px;

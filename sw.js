@@ -1,4 +1,4 @@
-const CACHE_NAME = "rhythm-v6";
+const CACHE_NAME = "rhythm-v7";
 const ASSETS = [
   "./",
   "./index.html",
