@@ -1,6 +1,5 @@
 import { el } from "../components/sheet.js";
 import { getEntriesForDate, getCategory } from "../lib/store.js";
-import { catColor } from "../lib/color.js";
 import { getMonthGrid, toISODate, isToday, monthLabel, addDays } from "../lib/date.js";
 
 const WEEKDAY_HEADS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -36,8 +35,7 @@ export function render(container, api) {
     const dots = el("div", { class: "dots" });
     catIds.forEach((cid) => {
       const cat = getCategory(cid);
-      const color = cat ? catColor(cat.colorIndex) : "#898781";
-      dots.appendChild(el("span", { class: "dot", style: `--dot-color:${color}` }));
+      dots.appendChild(el("span", { class: "dot" }, cat ? cat.emoji || "🏷️" : "🏷️"));
     });
 
     const cell = el("button", {

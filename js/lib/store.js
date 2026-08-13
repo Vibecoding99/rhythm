@@ -2,6 +2,7 @@ import { generateId } from "./id.js";
 import { fromISODate, weekdayIndex, timeStrToMinutes } from "./date.js";
 import { nextPaletteSlot } from "./color.js";
 import { deletePhoto, exportPhotosForIds, importPhotos } from "./photos.js";
+import { suggestEmoji } from "./emoji.js";
 
 const STORAGE_KEY = "rhythm.v1";
 
@@ -38,11 +39,18 @@ function mergeWithDefaults(parsed) {
   return merged;
 }
 
+// Categories saved before emoji existed don't have one — backfill a
+// best-guess so nothing looks broken; still freely editable afterward.
+function migrateCategoryEmoji(s) {
+  s.categories.forEach((c) => { if (!c.emoji) c.emoji = suggestEmoji(c.name); });
+  return s;
+}
+
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return structuredClone(DEFAULT_STATE);
-    return mergeWithDefaults(JSON.parse(raw));
+    return migrateCategoryEmoji(mergeWithDefaults(JSON.parse(raw)));
   } catch (e) {
     console.error("Failed to load rhythm data", e);
     return structuredClone(DEFAULT_STATE);
@@ -69,7 +77,10 @@ export function getCategory(id) {
   return state.categories.find((c) => c.id === id) || null;
 }
 
-export function addCategory(name, colorIndex) {
+// Color is always auto-assigned now (used only behind the scenes for chart
+// fills) — emoji is the user-facing identity, defaulting to a name-based
+// guess when left blank.
+export function addCategory(name, { emoji, colorIndex } = {}) {
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Category name required");
   const existing = state.categories.find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
@@ -77,6 +88,7 @@ export function addCategory(name, colorIndex) {
   const cat = {
     id: generateId(),
     name: trimmed,
+    emoji: (emoji && emoji.trim()) || suggestEmoji(trimmed),
     colorIndex: colorIndex ?? nextPaletteSlot(state.categories),
     fields: [],
     createdAt: Date.now(),
@@ -421,6 +433,6 @@ export async function importData(json) {
   }
   await importPhotos(parsed.photos);
   const { photos, ...stateOnly } = parsed;
-  state = mergeWithDefaults(stateOnly);
+  state = migrateCategoryEmoji(mergeWithDefaults(stateOnly));
   persist();
 }

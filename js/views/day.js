@@ -170,7 +170,7 @@ export function render(container, api) {
       style: `top:${top}px;height:${height}px;left:calc(${leftPct}% + ${col > 0 ? 3 : 0}px);width:calc(${widthPct}% - ${cols > 1 ? 6 : 0}px);--cat-color:${color}`,
       onclick: () => openEntryForm({ occurrence, onDone: () => api.refresh() }),
     }, [
-      el("div", { class: "entry-title" }, cat ? cat.name : "Untitled"),
+      el("div", { class: "entry-title" }, cat ? `${cat.emoji ? cat.emoji + " " : ""}${cat.name}` : "Untitled"),
       el("div", { class: "entry-time" }, `${formatTimeLabel(occurrence.startTime)} – ${formatTimeLabel(occurrence.endTime)}`),
       detail ? el("div", { class: "entry-note" }, detail) : null,
     ]);

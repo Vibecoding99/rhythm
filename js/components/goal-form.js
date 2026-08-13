@@ -80,7 +80,7 @@ export function openGoalForm({ goal, categoryId, onDone } = {}) {
           renderCatPicker();
           renderMetricFields();
         },
-      }, [el("span", { class: "swatch" }), cat.name]);
+      }, [el("span", { class: "cat-emoji" }, cat.emoji || "🏷️"), cat.name]);
       catPicker.appendChild(chip);
     });
     function renderCatPicker() {

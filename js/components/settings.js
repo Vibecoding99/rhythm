@@ -4,7 +4,6 @@ import {
   getCategories, deleteCategory, updateCategory, categoryUsageCount,
   getSettings, updateSettings, importData, setCategoryFields,
 } from "../lib/store.js";
-import { catColor } from "../lib/color.js";
 import { generateId } from "../lib/id.js";
 import { downloadBackupFile, backupStatus } from "../lib/backup.js";
 
@@ -63,10 +62,19 @@ export function openSettings(onChange) {
         catList.appendChild(el("p", { style: "color:var(--ink-muted);font-size:13px;padding:8px 0;" }, "No categories yet — add one from the entry form."));
       }
       cats.forEach((cat) => {
-        const color = catColor(cat.colorIndex);
         const count = categoryUsageCount(cat.id);
-        const row = el("div", { class: "category-manage-row", style: `--cat-color:${color}` }, [
-          el("span", { class: "swatch" }),
+        const row = el("div", { class: "category-manage-row" }, [
+          el("button", {
+            class: "cat-emoji-btn",
+            "aria-label": "Change emoji",
+            title: "Change emoji",
+            onclick: () => {
+              const next = prompt(`Emoji for "${cat.name}"`, cat.emoji || "");
+              if (next === null) return;
+              const trimmed = [...next.trim()].slice(0, 10).join("");
+              if (trimmed) { updateCategory(cat.id, { emoji: trimmed }); renderCategories(); onChange(); }
+            },
+          }, cat.emoji || "🏷️"),
           el("span", { class: "cname" }, cat.name),
           el("span", { class: "count" }, `${count}`),
           el("button", {

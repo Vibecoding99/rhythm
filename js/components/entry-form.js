@@ -8,7 +8,7 @@ import {
   getCategories, addCategory, findConflicts, addEntry, updateOccurrence,
   deleteOccurrence, trimOrReplaceOccurrence, getCategory,
 } from "../lib/store.js";
-import { catColor, nextPaletteSlot, PALETTE } from "../lib/color.js";
+import { catColor } from "../lib/color.js";
 import { generateId } from "../lib/id.js";
 import { compressImage, savePhoto, deletePhoto, getPhotoURL } from "../lib/photos.js";
 
@@ -225,7 +225,7 @@ export function openEntryForm({ date, startTime, endTime, occurrence, onDone } =
             renderCategoryPicker();
             renderCustomFields();
           },
-        }, [el("span", { class: "swatch" }), cat.name]);
+        }, [el("span", { class: "cat-emoji" }, cat.emoji || "🏷️"), cat.name]);
         catPicker.appendChild(chip);
       });
       const addChip = el("button", {
@@ -241,23 +241,12 @@ export function openEntryForm({ date, startTime, endTime, occurrence, onDone } =
 
     function renderNewCategoryRow() {
       newCatRow.innerHTML = "";
-      const suggestedIndex = nextPaletteSlot(getCategories());
-      let chosenIndex = suggestedIndex;
-      const nameInput = el("input", { type: "text", placeholder: "Category name", maxlength: "30" });
-      const dotPicker = el("div", { class: "color-dot-picker" });
-      PALETTE.forEach((slot, i) => {
-        const color = catColor(i);
-        const dot = el("button", {
-          type: "button",
-          class: `${i === chosenIndex ? "selected" : ""}`,
-          style: `--dot-color:${color}`,
-          "aria-label": slot.name,
-          onclick: () => {
-            chosenIndex = i;
-            dotPicker.querySelectorAll("button").forEach((b, bi) => b.classList.toggle("selected", bi === i));
-          },
-        });
-        dotPicker.appendChild(dot);
+      const nameInput = el("input", { type: "text", placeholder: "Category name", maxlength: "30", style: "flex:1;" });
+      const emojiInput = el("input", {
+        type: "text",
+        placeholder: "🏷️",
+        maxlength: "8",
+        class: "emoji-input",
       });
       const confirmBtn = el("button", {
         type: "button",
@@ -266,7 +255,7 @@ export function openEntryForm({ date, startTime, endTime, occurrence, onDone } =
         onclick: () => {
           const name = nameInput.value.trim();
           if (!name) { nameInput.focus(); return; }
-          const cat = addCategory(name, chosenIndex);
+          const cat = addCategory(name, { emoji: emojiInput.value });
           form.category = cat.id;
           form.customFields = {};
           newCatRow.style.display = "none";
@@ -274,10 +263,7 @@ export function openEntryForm({ date, startTime, endTime, occurrence, onDone } =
           renderCustomFields();
         },
       }, "Add");
-      const wrap = el("div", { style: "display:flex;flex-direction:column;gap:8px;width:100%;" }, [
-        el("div", { style: "display:flex;gap:8px;" }, [nameInput, confirmBtn]),
-        dotPicker,
-      ]);
+      const wrap = el("div", { style: "display:flex;gap:8px;width:100%;" }, [nameInput, emojiInput, confirmBtn]);
       newCatRow.appendChild(wrap);
     }
 
