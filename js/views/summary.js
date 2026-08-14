@@ -120,24 +120,52 @@ export function render(container, api) {
     .filter((r) => r.cat)
     .sort((a, b) => b.mins - a.mins);
 
-  const maxMins = rows[0].mins;
+  // Part-to-whole donut. Past a handful of categories, adjacent slices blur —
+  // fold the tail into a single "Other" segment rather than seat more colors.
+  if (rows.length > 1) {
+    const TOP_N = 7;
+    const donutRows = rows.length > TOP_N
+      ? [...rows.slice(0, TOP_N), { cat: null, mins: rows.slice(TOP_N).reduce((sum, r) => sum + r.mins, 0), isOther: true }]
+      : rows;
 
-  const chart = el("div", { class: "bar-chart" });
-  rows.forEach(({ cat, mins }) => {
-    const color = catColor(cat.colorIndex);
-    const pct = Math.round((mins / totalMinutes) * 100);
-    const widthPct = Math.max((mins / maxMins) * 100, 3);
-    chart.appendChild(el("div", { class: "bar-row" }, [
-      el("div", { class: "bar-row-head" }, [
-        el("span", { class: "cname" }, [el("span", { class: "swatch", style: `--cat-color:${color}` }), cat.name]),
-        el("span", { class: "cval" }, `${formatDurationLabel(mins)} · ${pct}%`),
+    const R = 40, CX = 50, CY = 50, STROKE = 16, GAP = 2.5;
+    const circumference = 2 * Math.PI * R;
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("viewBox", "0 0 100 100");
+    svg.setAttribute("class", "donut-svg");
+    const group = document.createElementNS(svgNS, "g");
+    group.setAttribute("transform", `rotate(-90 ${CX} ${CY})`);
+    svg.appendChild(group);
+
+    let offset = 0;
+    donutRows.forEach((r) => {
+      const rawLen = (r.mins / totalMinutes) * circumference;
+      const visibleLen = Math.max(rawLen - GAP, rawLen > 0 ? 0.6 : 0);
+      const circle = document.createElementNS(svgNS, "circle");
+      circle.setAttribute("cx", CX);
+      circle.setAttribute("cy", CY);
+      circle.setAttribute("r", R);
+      circle.setAttribute("fill", "none");
+      circle.setAttribute("stroke-width", STROKE);
+      circle.setAttribute("stroke-dasharray", `${visibleLen} ${circumference - visibleLen}`);
+      circle.setAttribute("stroke-dashoffset", String(-offset));
+      circle.setAttribute("stroke", r.isOther ? "var(--ink-muted)" : catColor(r.cat.colorIndex));
+      group.appendChild(circle);
+      offset += rawLen;
+    });
+
+    const top = rows[0];
+    const donutWrap = el("div", { class: "donut-wrap" }, [
+      svg,
+      el("div", { class: "donut-center" }, [
+        el("span", { class: "donut-center-emoji" }, top.cat.emoji || "🏷️"),
+        el("span", { class: "donut-center-pct" }, `${Math.round((top.mins / totalMinutes) * 100)}%`),
+        el("span", { class: "donut-center-label" }, top.cat.name),
       ]),
-      el("div", { class: "bar-track" }, [
-        el("div", { class: "bar-fill", style: `width:${widthPct}%;--cat-color:${color}` }),
-      ]),
-    ]));
-  });
-  container.appendChild(chart);
+    ]);
+    container.appendChild(donutWrap);
+  }
 
   const table = el("div", { class: "summary-table" });
   rows.forEach(({ cat, mins }) => {
