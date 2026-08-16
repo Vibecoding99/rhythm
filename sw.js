@@ -1,4 +1,4 @@
-const CACHE_NAME = "rhythm-v11";
+const CACHE_NAME = "rhythm-v12";
 const ASSETS = [
   "./",
   "./index.html",
@@ -25,6 +25,7 @@ const ASSETS = [
   "./js/lib/id.js",
   "./js/lib/photos.js",
   "./js/lib/store.js",
+  "./js/lib/sync.js",
   "./js/views/day.js",
   "./js/views/goals.js",
   "./js/views/month.js",
@@ -43,6 +44,35 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
+  );
+});
+
+// ---------- Push notifications ----------
+self.addEventListener("push", (event) => {
+  let data = { title: "Rhythm", body: "" };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch (e) {
+    // Non-JSON payload — fall back to the default title/body.
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "./icons/icon-192.png",
+      badge: "./icons/icon-192.png",
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const c of clients) {
+        if ("focus" in c) return c.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow("./index.html");
+    })
   );
 });
 

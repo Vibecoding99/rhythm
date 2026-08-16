@@ -154,6 +154,12 @@ export function openSettings(onChange) {
     }
     renderBackupStatusLine();
 
+    // Notifications
+    sheet.appendChild(sectionLabel("Notifications"));
+    const notifWrap = el("div", {});
+    sheet.appendChild(notifWrap);
+    renderNotifSection(notifWrap);
+
     // Data
     sheet.appendChild(sectionLabel("Data"));
     const fileInput = el("input", { type: "file", accept: "application/json", style: "display:none" });
@@ -313,6 +319,97 @@ function openCategoryFieldsEditor(category, onChange) {
       el("button", { type: "button", class: "btn btn-primary btn-block", onclick: close }, "Done"),
     ]));
   });
+}
+
+// Cloud sync/push is opt-in and loaded lazily (dynamic import, not a
+// top-level one) — opening Settings is a deliberate action, but we still
+// don't want the CDN-hosted Supabase client fetched just to render the
+// Appearance section for someone who never touches Notifications.
+function renderNotifSection(wrap) {
+  wrap.appendChild(el("div", { style: "color:var(--ink-muted);font-size:13px;padding:8px 0;" }, "Loading…"));
+  import("../lib/sync.js").then(async (sync) => {
+    const session = await sync.getSession();
+    renderNotifBody(wrap, sync, session);
+    sync.onAuthChange((s) => renderNotifBody(wrap, sync, s));
+  }).catch(() => {
+    wrap.innerHTML = "";
+    wrap.appendChild(el("p", { style: "color:var(--ink-muted);font-size:13px;" }, "Couldn't load — check your connection."));
+  });
+}
+
+async function renderNotifBody(wrap, sync, session) {
+  wrap.innerHTML = "";
+
+  if (!session) {
+    const emailInput = el("input", { type: "email", placeholder: "you@example.com", style: `${INPUT_STYLE}width:100%;` });
+    const status = el("div", { style: "font-size:12px;color:var(--ink-muted);margin-top:8px;" });
+    wrap.appendChild(el("p", { style: "color:var(--ink-secondary);font-size:13.5px;line-height:1.5;margin-bottom:10px;" },
+      "Sign in to get notified when you're close to a goal, falling behind pace, or haven't logged anything today."));
+    wrap.appendChild(el("div", { class: "field" }, [emailInput]));
+    wrap.appendChild(el("div", { class: "sheet-actions" }, [
+      el("button", {
+        class: "btn btn-primary btn-block",
+        onclick: async () => {
+          const email = emailInput.value.trim();
+          if (!email) { toast("Enter your email"); return; }
+          status.textContent = "Sending…";
+          try {
+            await sync.requestMagicLink(email);
+            status.textContent = `Check ${email} for a sign-in link.`;
+          } catch (e) {
+            status.textContent = "Couldn't send that — try again.";
+          }
+        },
+      }, "Send sign-in link"),
+    ]));
+    wrap.appendChild(status);
+    return;
+  }
+
+  wrap.appendChild(el("div", { class: "settings-row" }, [
+    el("div", {}, [
+      el("div", { class: "lbl" }, "Signed in"),
+      el("div", { class: "sub" }, session.user.email),
+    ]),
+    el("button", {
+      class: "btn btn-secondary",
+      style: "padding:8px 14px;font-size:13px;",
+      onclick: () => sync.signOut(),
+    }, "Sign out"),
+  ]));
+
+  const pushStatus = await sync.pushSubscriptionStatus();
+  const pushSwitch = el("button", {
+    type: "button",
+    class: `switch${pushStatus === "on" ? " on" : ""}`,
+    role: "switch",
+    "aria-checked": String(pushStatus === "on"),
+    disabled: pushStatus === "unsupported" ? "true" : undefined,
+    onclick: async () => {
+      const nowOn = pushSwitch.classList.contains("on");
+      try {
+        if (nowOn) {
+          await sync.disablePush();
+          pushSwitch.classList.remove("on");
+          pushSwitch.setAttribute("aria-checked", "false");
+        } else {
+          await sync.enablePush();
+          pushSwitch.classList.add("on");
+          pushSwitch.setAttribute("aria-checked", "true");
+          toast("Notifications enabled");
+        }
+      } catch (e) {
+        toast(e.message || "Couldn't update notifications");
+      }
+    },
+  }, []);
+  wrap.appendChild(el("div", { class: "settings-row" }, [
+    el("div", {}, [
+      el("div", { class: "lbl" }, "Push notifications"),
+      el("div", { class: "sub" }, pushStatus === "unsupported" ? "Not supported in this browser." : "Goal progress, pace, and daily nudges."),
+    ]),
+    pushSwitch,
+  ]));
 }
 
 function sectionLabel(text) {

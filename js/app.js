@@ -73,6 +73,18 @@ subscribe(() => render());
 render();
 checkAndShowBackupReminder();
 
+// ---------- Cloud sync (optional) ----------
+// Only loaded if there's a previous session to resume or a magic-link
+// redirect just landed — keeps the default fully-local, fast boot untouched
+// for anyone who has never used Notifications.
+const SUPABASE_SESSION_HINT = "sb-hlfhrdhvtxpnspkbgnwm-auth-token";
+if (localStorage.getItem(SUPABASE_SESSION_HINT) || location.hash.includes("access_token")) {
+  import("./lib/sync.js").then(({ onAuthChange, syncNow, scheduleSync }) => {
+    onAuthChange((session) => { if (session) syncNow().catch(() => {}); });
+    subscribe(() => scheduleSync());
+  }).catch(() => {});
+}
+
 // ---------- Service worker registration ----------
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
