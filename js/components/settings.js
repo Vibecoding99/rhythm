@@ -363,6 +363,29 @@ async function renderNotifBody(wrap, sync, session) {
       }, "Send sign-in link"),
     ]));
     wrap.appendChild(status);
+
+    const codeInput = el("input", { type: "text", inputmode: "numeric", placeholder: "6-digit code from the email", style: `${INPUT_STYLE}width:100%;` });
+    const codeStatus = el("div", { style: "font-size:12px;color:var(--ink-muted);margin-top:8px;" });
+    wrap.appendChild(el("div", { class: "field" }, [el("label", {}, "Or enter your code"), codeInput]));
+    wrap.appendChild(el("div", { class: "sheet-actions" }, [
+      el("button", {
+        class: "btn btn-secondary btn-block",
+        onclick: async () => {
+          const email = emailInput.value.trim();
+          const code = codeInput.value.trim();
+          if (!email) { toast("Enter your email above first"); return; }
+          if (!code) { toast("Enter the code from the email"); return; }
+          codeStatus.textContent = "Verifying…";
+          try {
+            await sync.verifyCode(email, code);
+            codeStatus.textContent = "Signed in!";
+          } catch (e) {
+            codeStatus.textContent = "That code didn't work — check it and try again.";
+          }
+        },
+      }, "Verify code"),
+    ]));
+    wrap.appendChild(codeStatus);
     return;
   }
 

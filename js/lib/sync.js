@@ -28,6 +28,16 @@ export async function requestMagicLink(email) {
   if (error) throw error;
 }
 
+// Verifying the 6-8 digit code from the sign-in email completes auth via a
+// direct API call — no link click, no redirect involved. More robust than
+// the link (which depends on the project's redirect-URL allowlist being
+// configured correctly) and works with the same email Supabase sends.
+export async function verifyCode(email, token) {
+  const supabase = await client();
+  const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
+  if (error) throw error;
+}
+
 export async function getSession() {
   const supabase = await client();
   const { data } = await supabase.auth.getSession();
