@@ -327,17 +327,22 @@ function openCategoryFieldsEditor(category, onChange) {
 // Appearance section for someone who never touches Notifications.
 function renderNotifSection(wrap) {
   wrap.appendChild(el("div", { style: "color:var(--ink-muted);font-size:13px;padding:8px 0;" }, "Loading…"));
+  let renderId = 0;
   import("../lib/sync.js").then(async (sync) => {
     const session = await sync.getSession();
-    renderNotifBody(wrap, sync, session);
-    sync.onAuthChange((s) => renderNotifBody(wrap, sync, s));
+    renderNotifBody(wrap, sync, session, () => ++renderId, () => renderId);
+    // onAuthChange fires immediately with the current session (on top of the
+    // getSession() call above) and again on future auth events — each firing
+    // must not race the others' DOM writes, hence the renderId guard.
+    sync.onAuthChange((s) => renderNotifBody(wrap, sync, s, () => ++renderId, () => renderId));
   }).catch(() => {
     wrap.innerHTML = "";
     wrap.appendChild(el("p", { style: "color:var(--ink-muted);font-size:13px;" }, "Couldn't load — check your connection."));
   });
 }
 
-async function renderNotifBody(wrap, sync, session) {
+async function renderNotifBody(wrap, sync, session, bumpRenderId, currentRenderId) {
+  const myId = bumpRenderId();
   wrap.innerHTML = "";
 
   if (!session) {
@@ -402,6 +407,8 @@ async function renderNotifBody(wrap, sync, session) {
   ]));
 
   const pushStatus = await sync.pushSubscriptionStatus();
+  if (myId !== currentRenderId()) return; // a newer render started while awaiting — abandon this one
+
   const pushSwitch = el("button", {
     type: "button",
     class: `switch${pushStatus === "on" ? " on" : ""}`,
