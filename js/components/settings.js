@@ -348,28 +348,28 @@ async function renderNotifBody(wrap, sync, session) {
     wrap.appendChild(el("div", { class: "field" }, [emailInput]));
     wrap.appendChild(el("div", { class: "sheet-actions" }, [
       el("button", {
-        class: "btn btn-primary btn-block",
+        class: "btn btn-secondary btn-block",
         onclick: async () => {
           const email = emailInput.value.trim();
           if (!email) { toast("Enter your email"); return; }
           status.textContent = "Sending…";
           try {
             await sync.requestMagicLink(email);
-            status.textContent = `Check ${email} for a sign-in link.`;
+            status.textContent = `Sent to ${email} — don't tap the link in it (that opens a separate browser tab on iPhone, not this app). Copy the code from the email and enter it below instead.`;
           } catch (e) {
             status.textContent = "Couldn't send that — try again.";
           }
         },
-      }, "Send sign-in link"),
+      }, "Email me a code"),
     ]));
     wrap.appendChild(status);
 
     const codeInput = el("input", { type: "text", inputmode: "numeric", placeholder: "6-digit code from the email", style: `${INPUT_STYLE}width:100%;` });
     const codeStatus = el("div", { style: "font-size:12px;color:var(--ink-muted);margin-top:8px;" });
-    wrap.appendChild(el("div", { class: "field" }, [el("label", {}, "Or enter your code"), codeInput]));
+    wrap.appendChild(el("div", { class: "field" }, [el("label", {}, "Enter the code"), codeInput]));
     wrap.appendChild(el("div", { class: "sheet-actions" }, [
       el("button", {
-        class: "btn btn-secondary btn-block",
+        class: "btn btn-primary btn-block",
         onclick: async () => {
           const email = emailInput.value.trim();
           const code = codeInput.value.trim();
