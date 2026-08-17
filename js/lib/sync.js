@@ -3,7 +3,7 @@
 // signs in from Settings. Loads the Supabase client from a CDN (not vendored)
 // since this feature inherently requires network access anyway; everything
 // else in Rhythm keeps working offline regardless.
-import { exportData } from "./store.js";
+import { exportData, subscribe as subscribeStore } from "./store.js";
 
 const SUPABASE_URL = "https://hlfhrdhvtxpnspkbgnwm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZmhyZGh2dHhwbnNwa2JnbndtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4OTE1MTMsImV4cCI6MjEwMjQ2NzUxM30.6aYLRha8V-SLqg4c7I_vZ49byuRAOLKFGBNTdl3KJr8";
@@ -49,11 +49,32 @@ export async function signOut() {
   await supabase.auth.signOut();
 }
 
+// Registers the store->cloud sync exactly once, no matter how many times
+// onAuthChange fires or who called it (app.js at boot, Settings after a
+// fresh sign-in, a token refresh, ...).
+let autoSyncWired = false;
+function ensureAutoSync() {
+  if (autoSyncWired) return;
+  autoSyncWired = true;
+  subscribeStore(() => scheduleSync());
+}
+
 // cb(session) fires on sign-in, sign-out, and token refresh — including
 // right after a magic-link redirect completes (the SDK auto-detects the
-// session from the URL on client init).
+// session from the URL on client init), and once immediately with whatever
+// session already exists when first subscribed. A truthy session always
+// triggers both an immediate sync push and (once) the ongoing auto-sync
+// subscription — a first-time sign-in used to leave the app without either
+// until the next full reload, which is why "signed in" could still show an
+// empty synced state.
 export function onAuthChange(cb) {
-  client().then((supabase) => supabase.auth.onAuthStateChange((_event, session) => cb(session)));
+  client().then((supabase) => supabase.auth.onAuthStateChange((_event, session) => {
+    if (session) {
+      ensureAutoSync();
+      syncNow().catch(() => {});
+    }
+    cb(session);
+  }));
 }
 
 // ---------- State sync ----------

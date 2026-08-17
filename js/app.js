@@ -79,10 +79,7 @@ checkAndShowBackupReminder();
 // for anyone who has never used Notifications.
 const SUPABASE_SESSION_HINT = "sb-hlfhrdhvtxpnspkbgnwm-auth-token";
 if (localStorage.getItem(SUPABASE_SESSION_HINT) || location.hash.includes("access_token")) {
-  import("./lib/sync.js").then(({ onAuthChange, syncNow, scheduleSync }) => {
-    onAuthChange((session) => { if (session) syncNow().catch(() => {}); });
-    subscribe(() => scheduleSync());
-  }).catch(() => {});
+  import("./lib/sync.js").then(({ onAuthChange }) => onAuthChange(() => {})).catch(() => {});
 }
 
 // ---------- Service worker registration ----------
