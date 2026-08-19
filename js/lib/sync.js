@@ -90,9 +90,15 @@ export async function syncNow() {
   if (!session) return false;
   const supabase = await client();
   const state = JSON.parse(await exportData());
+  // Not part of local state — annotated at sync time so the server can
+  // resolve reminder/notification times in the user's actual local time
+  // instead of guessing.
+  let timezone = null;
+  try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch (e) { /* unsupported */ }
   const { error } = await supabase.from("user_state").upsert({
     user_id: session.user.id,
     state,
+    timezone,
     updated_at: new Date().toISOString(),
   });
   return !error;

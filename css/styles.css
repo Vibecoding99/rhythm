@@ -609,6 +609,9 @@ p { margin: 0; }
 .category-chip.selected { border-color: var(--cat-color); background: color-mix(in srgb, var(--cat-color) 14%, var(--surface)); }
 .category-chip.add-new { border-style: dashed; color: var(--ink-secondary); }
 
+.reminder-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.reminder-chip.selected { border-color: var(--ink); background: var(--surface-raised); }
+
 .new-category-row {
   display: flex;
   gap: 8px;

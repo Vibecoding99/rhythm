@@ -161,6 +161,7 @@ export function getEntriesForDate(iso) {
           note: e.note,
           customFields: e.customFields || {},
           photoId: e.photoId || null,
+          reminder: e.reminder || null,
         });
       }
       continue;
@@ -183,6 +184,7 @@ export function getEntriesForDate(iso) {
         note: exc.overrides.note,
         customFields: exc.overrides.customFields || {},
         photoId: exc.overrides.photoId || null,
+        reminder: exc.overrides.reminder || null,
       });
       continue;
     }
@@ -198,6 +200,7 @@ export function getEntriesForDate(iso) {
       note: e.note,
       customFields: e.customFields || {},
       photoId: e.photoId || null,
+      reminder: e.reminder || null,
     });
   }
 
@@ -246,6 +249,7 @@ export function addEntry(data) {
     note: data.note || "",
     customFields: data.customFields || {},
     photoId: data.photoId || null,
+    reminder: data.reminder || null,
     isRecurring: !!data.isRecurring,
     recurrenceRule: data.isRecurring ? { freq: "weekly" } : null,
     createdAt: now,
@@ -284,6 +288,7 @@ export function updateOccurrence(occurrence, changes, scope) {
     note: changes.note !== undefined ? changes.note : occurrence.note,
     customFields: changes.customFields !== undefined ? changes.customFields : occurrence.customFields,
     photoId: changes.photoId !== undefined ? changes.photoId : occurrence.photoId,
+    reminder: changes.reminder !== undefined ? changes.reminder : occurrence.reminder,
   };
   if (exc) {
     exc.type = "modified";

@@ -60,8 +60,8 @@ function buildTimeSelect(selected, onChange) {
 export function openEntryForm({ date, startTime, endTime, occurrence, onDone } = {}) {
   const editing = !!occurrence;
   const seed = editing
-    ? { date: occurrence.date, startTime: occurrence.startTime, endTime: occurrence.endTime, category: occurrence.category, note: occurrence.note || "", customFields: { ...(occurrence.customFields || {}) }, photoId: occurrence.photoId || null }
-    : { date: date || toISODate(new Date()), ...nowSnapped(), category: null, note: "", customFields: {}, photoId: null };
+    ? { date: occurrence.date, startTime: occurrence.startTime, endTime: occurrence.endTime, category: occurrence.category, note: occurrence.note || "", customFields: { ...(occurrence.customFields || {}) }, photoId: occurrence.photoId || null, reminder: occurrence.reminder || null }
+    : { date: date || toISODate(new Date()), ...nowSnapped(), category: null, note: "", customFields: {}, photoId: null, reminder: null };
   if (startTime) seed.startTime = startTime;
   if (endTime) seed.endTime = endTime;
 
@@ -73,6 +73,7 @@ export function openEntryForm({ date, startTime, endTime, occurrence, onDone } =
     note: seed.note,
     customFields: seed.customFields,
     photoId: seed.photoId,
+    reminder: seed.reminder,
     isRecurring: editing ? !!occurrence.isRecurring : false,
   };
   // Photo edits stay pending (in memory / a local object URL) until Save —
@@ -343,6 +344,46 @@ export function openEntryForm({ date, startTime, endTime, occurrence, onDone } =
     }, form.note);
     sheet.appendChild(el("div", { class: "field" }, [el("label", {}, "Note"), noteInput]));
 
+    // ---- Reminder ----
+    const REMINDER_OPTIONS = [
+      [null, "None"],
+      ["night_before", "Night before"],
+      ["morning_of", "Morning of"],
+      ["1_hour_before", "1 hour before"],
+    ];
+    const reminderChips = el("div", { class: "reminder-options" });
+    REMINDER_OPTIONS.forEach(([val, label]) => {
+      const chip = el("button", {
+        type: "button",
+        class: `category-chip reminder-chip${val === form.reminder ? " selected" : ""}`,
+        onclick: () => {
+          form.reminder = val;
+          Array.from(reminderChips.children).forEach((c, i) => c.classList.toggle("selected", REMINDER_OPTIONS[i][0] === val));
+        },
+      }, label);
+      reminderChips.appendChild(chip);
+    });
+    const reminderHint = el("div", { class: "duration-hint" }, "");
+    sheet.appendChild(el("div", { class: "field" }, [el("label", {}, "Reminder"), reminderChips, reminderHint]));
+
+    // Entry form is the most-opened sheet in the app — only pay the
+    // CDN-hosted Supabase client's network cost if there's already evidence
+    // (from Settings) that cloud features are in use. Never force it just to
+    // show a hint on a core, high-frequency surface.
+    const SUPABASE_SESSION_HINT = "sb-hlfhrdhvtxpnspkbgnwm-auth-token";
+    if (localStorage.getItem(SUPABASE_SESSION_HINT)) {
+      import("../lib/sync.js").then(async (sync) => {
+        const session = await sync.getSession().catch(() => null);
+        if (!session) {
+          reminderHint.textContent = "Sign in under Settings → Notifications to receive reminders.";
+        } else if ((await sync.pushSubscriptionStatus().catch(() => "off")) !== "on") {
+          reminderHint.textContent = "Turn on Push notifications in Settings to receive reminders.";
+        }
+      }).catch(() => {});
+    } else {
+      reminderHint.textContent = "Requires signing in under Settings → Notifications.";
+    }
+
     // ---- Recurrence ----
     const recurrenceLabel = () => `Repeats every ${weekdayLabel(fromISODate(form.date), true)}`;
     const recurrenceHint = el("div", { class: "duration-hint", style: "margin-top:2px;" }, recurrenceLabel());
@@ -436,7 +477,7 @@ export function openEntryForm({ date, startTime, endTime, occurrence, onDone } =
       form.photoId = await resolvePhotoId();
 
       if (editing) {
-        const baseChanges = { startTime: form.startTime, endTime: form.endTime, category: form.category, note: form.note, customFields: form.customFields, photoId: form.photoId };
+        const baseChanges = { startTime: form.startTime, endTime: form.endTime, category: form.category, note: form.note, customFields: form.customFields, photoId: form.photoId, reminder: form.reminder };
         if (occurrence.isRecurring) {
           // Date is fixed for recurring occurrences — the anchor/exception key never moves.
           const scope = await showScopeDialog("Save");
