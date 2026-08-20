@@ -12,6 +12,7 @@ const DEFAULT_STATE = {
   entries: [],
   exceptions: [],
   goals: [],
+  inbox: [],
   settings: {
     dayStartHour: 6,
     dayEndHour: 23,
@@ -128,6 +129,7 @@ export function deleteCategory(id) {
     return !!master;
   });
   state.goals = state.goals.filter((g) => g.categoryId !== id);
+  state.inbox = state.inbox.filter((i) => i.categoryId !== id);
   persist();
 }
 
@@ -408,6 +410,52 @@ export function updateGoal(id, changes) {
 export function deleteGoal(id) {
   state.goals = state.goals.filter((g) => g.id !== id);
   persist();
+}
+
+// ---------- Inbox ----------
+// Undated quick-captures. Genuinely separate from `entries` rather than a
+// placeholder-dated entry — Rhythm's entries always live on a specific day's
+// timeline, but an inbox item by definition doesn't have one yet.
+
+export function getInboxItems() {
+  return state.inbox.slice().sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function addInboxItem(data) {
+  const now = Date.now();
+  const item = {
+    id: generateId(),
+    categoryId: data.categoryId,
+    note: data.note || "",
+    durationMin: data.durationMin || 30,
+    isRecurring: !!data.isRecurring,
+    recurrenceRule: data.recurrenceRule || null,
+    createdAt: now,
+  };
+  state.inbox.push(item);
+  persist();
+  return item;
+}
+
+export function deleteInboxItem(id) {
+  state.inbox = state.inbox.filter((i) => i.id !== id);
+  persist();
+}
+
+// Gives an inbox item a date/time, turning it into a real scheduled entry,
+// and removes it from the inbox.
+export function promoteInboxItem(id, { date, startTime, endTime }) {
+  const item = state.inbox.find((i) => i.id === id);
+  if (!item) return null;
+  const entry = addEntry({
+    date, startTime, endTime,
+    category: item.categoryId,
+    note: item.note,
+    isRecurring: item.isRecurring,
+  });
+  state.inbox = state.inbox.filter((i) => i.id !== id);
+  persist();
+  return entry;
 }
 
 // ---------- Settings ----------

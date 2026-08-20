@@ -1,6 +1,7 @@
 import { toISODate } from "./lib/date.js";
 import { subscribe } from "./lib/store.js";
 import { openEntryForm } from "./components/entry-form.js";
+import { openQuickCapture } from "./components/quick-capture.js";
 import { openSettings, applyStoredTheme } from "./components/settings.js";
 import { checkAndShowBackupReminder } from "./components/backup-banner.js";
 import * as dayView from "./views/day.js";
@@ -66,6 +67,10 @@ fab.addEventListener("click", () => {
 
 document.getElementById("settings-btn").addEventListener("click", () => {
   openSettings(() => render());
+});
+
+document.getElementById("quick-capture-btn").addEventListener("click", () => {
+  openQuickCapture(() => render());
 });
 
 subscribe(() => render());
