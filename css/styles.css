@@ -630,6 +630,36 @@ p { margin: 0; }
 .capture-chip-priority { cursor: pointer; }
 .capture-chip-priority.active { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--surface)); color: var(--danger); }
 
+.mic-btn {
+  flex-shrink: 0;
+  width: 48px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  font-size: 19px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.mic-btn.listening {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.voice-status {
+  margin-top: 8px;
+  font-size: 13.5px;
+  color: var(--ink-secondary);
+  font-style: italic;
+}
+.voice-status-error {
+  color: var(--danger);
+  font-style: normal;
+}
+
 .inbox-row {
   display: flex;
   align-items: center;

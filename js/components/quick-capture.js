@@ -4,6 +4,7 @@ import { parseCapture } from "../lib/parse.js";
 import { buildDraft, saveDraft } from "../lib/capture.js";
 import { getCategories, getCategory, getInboxItems, deleteInboxItem, promoteInboxItem } from "../lib/store.js";
 import { catColor } from "../lib/color.js";
+import { isVoiceSupported, startListening } from "../lib/voice.js";
 import {
   minutesToTimeStr, timeStrToMinutes, formatTimeLabel, formatDurationLabel,
   weekdayLabel, fromISODate, toISODate, MINUTES_PER_DAY, SNAP,
@@ -46,14 +47,57 @@ export function openQuickCapture(onDone) {
     const input = el("input", {
       type: "text",
       placeholder: "gym tomorrow 7am for 45 min...",
-      style: "width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border-strong);background:var(--surface);font-size:16px;margin-top:14px;",
+      style: "flex:1;min-width:0;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border-strong);background:var(--surface);font-size:16px;",
       oninput: (e) => renderPreview(e.target.value),
       onkeydown: (e) => { if (e.key === "Enter") { e.preventDefault(); handleConfirm(); } },
     });
-    sheet.appendChild(input);
+
+    const inputRow = el("div", { style: "display:flex;gap:8px;align-items:stretch;margin-top:14px;" }, [input]);
+
+    let stopListening = null;
+    let micBtn = null;
+    if (isVoiceSupported()) {
+      micBtn = el("button", {
+        type: "button", class: "mic-btn", "aria-label": "Voice capture",
+        onclick: () => { if (stopListening) stopListening(); else beginListening(); },
+      }, "🎙️");
+      inputRow.appendChild(micBtn);
+    }
+    sheet.appendChild(inputRow);
+
+    const voiceStatus = el("p", { class: "voice-status", style: "display:none;" });
+    sheet.appendChild(voiceStatus);
 
     const previewWrap = el("div", { style: "margin-top:14px;" });
     sheet.appendChild(previewWrap);
+
+    function setVoiceStatus(text, isError) {
+      if (!text) { voiceStatus.style.display = "none"; return; }
+      voiceStatus.textContent = text;
+      voiceStatus.className = `voice-status${isError ? " voice-status-error" : ""}`;
+      voiceStatus.style.display = "block";
+    }
+
+    function beginListening() {
+      micBtn.classList.add("listening");
+      input.value = "";
+      setVoiceStatus("Listening…");
+      stopListening = startListening({
+        onInterim: (text) => setVoiceStatus(text),
+        onFinal: (text) => {
+          input.value = text;
+          renderPreview(text);
+        },
+        onError: (reason) => {
+          if (reason === "not-allowed") setVoiceStatus("Microphone access denied — you can still type", true);
+          else setVoiceStatus("Didn't catch that — try again or type it", true);
+        },
+        onEnd: () => {
+          micBtn.classList.remove("listening");
+          stopListening = null;
+        },
+      });
+    }
 
     const actions = el("div", { class: "sheet-actions" });
     const confirmBtn = el("button", { type: "button", class: "btn btn-primary btn-block", disabled: "true", onclick: handleConfirm }, "Add");
